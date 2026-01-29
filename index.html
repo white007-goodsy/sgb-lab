@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나만의 입학사정관: 생기부 디자인 연구소 (Ver 5.8)</title>
+    <!-- Tailwind CSS (디자인) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons (아이콘) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDF 생성을 위한 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        .slide-up { animation: slideUp 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a0a0a0; }
+
+        /* PDF 스타일 (화면 밖 숨김 처리) */
+        #pdf-wrapper {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 210mm; /* A4 Width */
+            background: white;
+            color: black;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        
+        /* PDF 내부 콘텐츠 스타일 */
+        .pdf-page {
+            padding: 20mm;
+            min-height: 297mm; /* A4 Height */
+            box-sizing: border-box;
+            background: white;
+        }
+
+        .pdf-header { border-bottom: 2px solid #333; margin-bottom: 20px; padding-bottom: 10px; }
+        .pdf-header h1 { font-size: 22pt; font-weight: 900; margin: 0; }
+        .pdf-header .student-info { font-size: 12pt; font-weight: bold; margin-top: 10px; color: #333; }
+        .pdf-header .sub { font-size: 10pt; color: #666; text-align: right; margin-top: 5px; }
+
+        .pdf-section { margin-bottom: 25px; }
+        .pdf-section h2 { 
+            font-size: 14pt; font-weight: bold; color: #4f46e5; 
+            border-left: 5px solid #4f46e5; padding-left: 10px; margin-bottom: 15px; 
+        }
+        
+        .pdf-item { margin-bottom: 15px; }
+        .pdf-label { 
+            font-size: 10pt; font-weight: bold; color: #444; background-color: #f3f4f6; 
+            display: inline-block; padding: 2px 8px; border-radius: 4px; margin-bottom: 5px; 
+        }
+        .pdf-content { 
+            font-size: 10pt; line-height: 1.6; color: #111; 
+            border: 1px solid #e5e7eb; padding: 10px; border-radius: 5px; white-space: pre-wrap;
+        }
+
+        /* 선생님 피드백 박스 (빈칸) */
+        .teacher-box {
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 10px;
+            height: 150px; /* 넉넉한 높이 */
+            margin-top: 5px;
+        }
+        .teacher-label { font-weight: bold; display: block; margin-bottom: 5px; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 pb-20 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white border-b sticky top-0 z-10 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity" onclick="goHome()">
+                <i data-lucide="book-open" class="text-indigo-600 w-8 h-8"></i>
+                <h1 class="text-xl md:text-2xl font-extrabold tracking-tight text-gray-900">
+                    나만의 입학사정관 <span class="text-indigo-600 font-medium text-sm md:text-base ml-2">생기부 디자인 연구소</span>
+                </h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-xs md:text-sm text-gray-500 font-medium hidden sm:block">
+                    서울여대 2026 가이드북 기반
+                </div>
+                <button onclick="goHome()" class="text-gray-500 hover:text-indigo-600" title="처음으로 돌아가기">
+                    <i data-lucide="home" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-8 flex-grow w-full" id="app">
+        <!-- JS로 내용이 렌더링 됩니다 -->
+    </main>
+
+    <!-- Web Footer (Visible on Website) -->
+    <footer class="text-center text-gray-400 text-sm py-6 border-t mt-auto">
+        Made by 공주여고 이수연
+    </footer>
+
+    <!-- PDF Report Structure (Hidden) -->
+    <div id="pdf-wrapper">
+        <div class="pdf-page">
+            <div class="pdf-header">
+                <h1>학생부종합전형 설계 워크북</h1>
+                <div class="student-info" id="report-student-name"></div> <!-- 학번/이름 표시 -->
+                <div class="sub">출처: 2026 서울여대 학생부종합 가이드북</div>
+            </div>
+
+            <!-- 1. 입학사정관 시뮬레이션 -->
+            <div class="pdf-section">
+                <h2>1. 입학사정관 시뮬레이션 (Analysis)</h2>
+                <div class="pdf-item">
+                    <span class="pdf-label">선택한 역량 및 과목</span>
+                    <div class="pdf-content" id="report-category"></div>
+                </div>
+                <div class="pdf-item">
+                    <span class="pdf-label">Q. 우수한 학생과 부족한 학생의 차이점 분석</span>
+                    <div class="pdf-content" id="report-analysis"></div>
+                </div>
+            </div>
+
+            <!-- 2. 나만의 생기부 설계 -->
+            <div class="pdf-section">
+                <h2>2. 나만의 생기부 설계 (Design)</h2>
+                <div class="pdf-item">
+                    <span class="pdf-label">희망 진로</span>
+                    <div class="pdf-content" id="report-career"></div>
+                </div>
+                <div class="pdf-item">
+                    <span class="pdf-label">관련 교과/단원</span>
+                    <div class="pdf-content" id="report-subject"></div>
+                </div>
+                <div class="pdf-item">
+                    <span class="pdf-label">탐구 주제</span>
+                    <div class="pdf-content" id="report-topic"></div>
+                </div>
+                <div class="pdf-item">
+                    <span class="pdf-label">탐구 과정 (구체적 활동)</span>
+                    <div class="pdf-content" id="report-process"></div>
+                </div>
+                <div class="pdf-item">
+                    <span class="pdf-label">배우고 느낀 점 (성장)</span>
+                    <div class="pdf-content" id="report-learning"></div>
+                </div>
+            </div>
+
+            <!-- 3. 선생님 피드백 (수기 작성용) -->
+            <div class="pdf-section" style="page-break-inside: avoid;"> 
+                <h2>3. 선생님 피드백 (Feedback)</h2>
+                <div style="margin-bottom: 15px;">
+                    <span class="teacher-label">📌 선생님 총평</span>
+                    <div class="teacher-box"></div>
+                </div>
+                <div>
+                    <span class="teacher-label">🚀 선생님의 제안 (구체적 가이드)</span>
+                    <div class="teacher-box"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 데이터 ---
+        const DEPARTMENTS = {
+            psychology: {
+                name: "심리·인지과학학부",
+                icon: "brain",
+                color: "bg-pink-100 text-pink-700",
+                evalPoints: {
+                    academic: {
+                        definition: "대학 교육을 충실히 이수하는 데 필요한 수학 능력",
+                        details: [
+                            "<b>학업성취도:</b> 고교 교육과정에서 이수한 교과의 성취수준이나 학업 발전의 정도",
+                            "<b>학업태도:</b> 학업을 수행하고 학습해 나가는 의지와 노력",
+                            "<b>탐구력:</b> 지적 호기심을 바탕으로 사물과 현상에 대해 탐구하고, 문제를 해결하려는 능력"
+                        ]
+                    },
+                    career: {
+                        definition: "자신의 진로와 전공(계열)에 관한 탐색 노력과 준비 정도",
+                        details: [
+                            "<b>전공(계열) 관련 교과 이수 노력:</b> 고교 교육과정에서 전공(계열)에 필요한 과목을 선택하여 이수한 정도",
+                            "<b>전공(계열) 관련 교과 성취도:</b> 고교 교육과정에서 전공(계열)에 필요한 과목을 수강하고 취득한 학업성취 수준",
+                            "<b>진로 탐색 활동과 경험:</b> 자신의 진로를 탐색하는 과정에서 이루어진 활동이나 경험 및 노력 정도"
+                        ]
+                    },
+                    community: {
+                        definition: "공동체의 일원으로서 갖추어야 할 바람직한 사고와 행동",
+                        details: [
+                            "<b>협업과 소통능력:</b> 공동체의 목표를 달성하기 위해 협력하며, 구성원들과 합리적인 의사소통을 할 수 있는 능력",
+                            "<b>나눔과 배려:</b> 상대방을 존중하고 이해하여 원만한 관계를 형성하며, 타인을 위하여 기꺼이 나누어 주고자 하는 태도와 행동",
+                            "<b>성실성과 규칙준수:</b> 책임감을 바탕으로 자신의 의무를 다하고, 공동체의 기본 문화와 원칙을 준수하는 태도",
+                            "<b>리더십:</b> 공동체의 목표 달성을 위해 구성원들의 상호작용을 이끌어가는 능력"
+                        ]
+                    }
+                },
+                categories: {
+                    academic: {
+                        label: "학업역량",
+                        scenarios: {
+                            social: {
+                                title: "1학년 통합사회",
+                                better: "A",
+                                studentA: {
+                                    label: "학생 A",
+                                    text: "항상 수업 규칙을 잘 지키며 예의바른 태도로 수업을 듣고, 주어진 과제를 즉시 수행하는 적극적이고 능동적인 모습을 보임. 세계화 및 세계 문화 단원 학습에 특히 관심과 흥미를 보였으며, 수행 평가와 지필 평가에서 모두 좋은 성적을 거두어 교과 학습에 대한 자신감이 크게 향상되었음. 1단원 내용 중 행복을 실현하기 위한 조건들을 탐구하며..."
+                                },
+                                studentB: {
+                                    label: "학생 B",
+                                    text: "수업 시간에 늦지 않고 규칙을 잘 지키며, 선생님의 지도에 잘 따르는 모범적인 학생임. '세계화' 단원 수행평가에서 교과서에 나온 세계 여러 나라의 문화적 특징을 조사하고, 이를 PPT 슬라이드에 깔끔하게 정리하여 기한 내에 제출함. 발표 시에는 조사한 내용을 대본을 보며 침착하게 전달하였으며, 친구들의 발표를 경청하는 자세가 좋음. 지필 평가 성적도 꾸준히 유지하려고 노력하며, 조별 활동 시 조용히 자신의 역할을 수행함."
+                                },
+                                expertOpinion: "A학생은 단순 참여를 넘어 '적극적/능동적' 태도와 성적 향상이라는 '구체적 성취'가 언급된 반면, B학생은 '경청', '필기', '제출' 등 학생으로서의 기본적인 의무를 다한 수준에 머물러 있습니다. 학습에 대한 열의나 심화된 탐구 역량을 찾기 어렵습니다."
+                            },
+                            history: {
+                                title: "1학년 한국사",
+                                better: "A",
+                                studentA: {
+                                    label: "학생 A",
+                                    text: "수업시간에 항상 집중하고 수업 활동과 질의 응답에 적극적으로 참여함. 목적 없이 학습을 이어가는 것이 아닌, 자신의 학습 상태를 중간 점검하며 부족한 부분과 완벽히 알고 있는 내용을 파악하여 발전 방향을 모색할 줄 아는 성찰 능력과 메타인지력을 갖춤. 필기를 꼼꼼히 할 뿐 아니라 주요 주제를 하나의 범주를 묶고 표로 정리하는 등 효율적으로 공부하기 위해 자기만의 학습 방법을 만듦. '조선시대 붕당 정치'와 관련한 사료 탐구 활동에서 주요 사회의 흐름을 잘 파악하였고 사료 속 역사 용어가 의미하는 사건, 인물을 잘 분석하며 역사적 탐구력과 사료 분석력을 드러냄."
+                                },
+                                studentB: {
+                                    label: "학생 B",
+                                    text: "역사적 사실에 대한 암기력이 좋아 수업 시간에 다루는 사건의 연도와 인물을 잘 기억함. 교사의 설명을 놓치지 않고 교과서 여백에 메모하는 등 학습 태도가 우수함. '붕당 정치' 단원을 배우며 붕당의 형성 과정을 교과서 내용을 바탕으로 요약 정리하여 제출함. 수행평가 활동지에 빈칸 없이 내용을 잘 채워 성실함을 인정받음. 시험 기간에는 교과서와 프린트물을 반복해서 읽으며 주요 사건의 순서를 암기하는 등 노력을 기울여 좋은 성취도를 유지함."
+                                },
+                                expertOpinion: "A학생은 '메타인지', '범주화', '사료 분석' 등 자기주도적인 학습 전략과 역사적 사고력이 드러납니다. 반면 B학생은 교과서 내용을 그대로 정리하거나 암기하는 수동적인 학습 태도만 보여주고 있어 학업 역량의 깊이에서 큰 차이가 납니다."
+                            },
+                            reading: {
+                                title: "2학년 독서",
+                                better: "A",
+                                studentA: {
+                                    label: "학생 A",
+                                    text: "수업 태도가 좋고 수업 중 활동에 적극 참여하는 우수한 학생임. 책대화 보고서 활동에서 '피구왕 서영(황유미)'를 선택해 조원들과 같이 읽고 책을 읽으며 드는 의문점을 정리해 책대화를 나눔. '자신도 새 학기 서영이와 같은 경험을 해 본 적이 있는가?' 등의 질문을 던짐. 긍정 심리학에서 바라본 행복의 4가지 요소 등을 잘 정리해 PPT로 만들어 발표함. 내용을 잘 이해하고 있고 또렷한 목소리로 유창하게 발표해 좋은 평가를 얻음. 이번 탐구 활동을 통해 심리학에 대해 흥미를 느끼게 되었고 다른 학자들이 행복에 대해서 어떻게 이야기하고 있는지를 탐구하고 싶다는 내용을 소감문으로 작성함."
+                                },
+                                studentB: {
+                                    label: "학생 B",
+                                    text: "수업 시간에 흐트러짐 없는 자세로 독서 활동에 임하는 학생임. 지정 도서인 '피구왕 서영'을 읽고 책의 전체적인 줄거리를 요약하여 친구들에게 발표함. 주인공 서영이가 겪는 갈등 상황에 공감하며, 가장 인상 깊은 구절로 서영이의 대사를 꼽아 그 이유를 설명함. 조원들과 함께 책을 읽는 시간에 딴짓하지 않고 집중하여 읽었으며, 독후감 과제를 정해진 분량에 맞춰 성실하게 작성하여 기한 내에 제출함. 책의 내용을 자신의 경험에 비추어 감상적으로 잘 표현함."
+                                },
+                                expertOpinion: "A학생은 책을 읽으며 생긴 '의문점'을 해결하기 위해 토론하고, 이를 '긍정 심리학' 이론과 연결해 심화 탐구로 발전시켰습니다. B학생은 누구나 할 수 있는 줄거리 요약과 단순한 감상에 그쳐, 독서를 통한 지적 성장이 잘 보이지 않습니다."
+                            },
+                            english: {
+                                title: "2학년 영어Ⅱ",
+                                better: "A",
+                                studentA: {
+                                    label: "학생 A",
+                                    text: `매 활동에 철저하고 뛰어난 자기 관리 역량을 보여줌. 진로 관련 책 추천 글쓰기 활동에서 'Maybe You Should Talk to Someone (로리 고틀립)'을 추천함. 탁월한 문장 구성 능력과 다양한 어휘 사용으로 유창한 영어 쓰기 실력을 보여줌. "우리는 손실 없이 변화를 이룰 수 없다."라는 문장을 인상 깊어하며 변화 및 발전 뒤에 따라오는 손실에 대해 깊이 이해한 듯 보임. 학습 일지를 작성하는 활동에 적극적이고 성실히 참여함. 침묵 효과를 소재로 한 지문을 학습한 후 위계질서가 존재하는 집단생활 속, 또 다른 심리적 효과에 대해 호기심을 가져 추가 조사를 진행함.`
+                                },
+                                studentB: {
+                                    label: "학생 B",
+                                    text: "영어 교과에 흥미를 가지고 수업에 임하며 과제 제출이 매우 성실함. 진로 관련 도서로 'Maybe You Should Talk to Someone'을 선택하여 읽고, 책의 목차와 주요 내용을 우리말로 번역하여 친구들에게 소개함. 독해 과정에서 모르는 단어를 형광펜으로 표시하고 단어장에 정리하여 꼼꼼하게 암기하는 습관이 있음. 수업 시간에 배운 문법 지식을 활용하여 정확한 문장을 구사하려고 노력하며, 지문 해석 위주의 학습을 통해 기본적인 독해 능력을 기르고 있음."
+                                },
+                                expertOpinion: "A학생은 책 속의 문장을 자신의 상황이나 사회적 맥락(위계질서, 심리적 효과)에 적용하여 해석하는 능력을 보여주었습니다. B학생은 단어 암기나 번역 등 기능적인 영어 학습에만 치중하여, 텍스트를 깊이 있게 이해하는 문해력과 사고력이 드러나지 않습니다."
+                            }
+                        }
+                    },
+                    career: {
+                        label: "진로역량",
+                        scenarios: {
+                            clubActivity: {
+                                title: "동아리활동",
+                                better: "B",
+                                studentA: {
+                                    label: "학생 A",
+                                    text: "1학년 동아리활동\n\n심리학 동아리에 가입하여 부원들과 함께 범죄 심리 및 행동 심리학 관련 영상을 시청하고 토론함. 평소 관심 있던 착시 현상과 스트룹 효과에 대해 인터넷으로 조사하여 발표함. 글자 색과 의미가 다를 때 읽는 속도가 느려지는 현상을 친구들과 직접 체험해보며 흥미를 느낌. 동아리 활동에 빠지지 않고 성실하게 참여하며 부원들과 원만한 관계를 유지함.\n\n3학년 동아리활동\n\n사회 문제 탐구 반에서 한국의 심각한 저출산 문제에 대해 조사함. 통계청 자료를 검색하여 최근 출산율 추이를 그래프로 확인하고, 뉴스를 통해 네덜란드 등 해외 정책 사례를 찾아봄. 저출산 해결을 위해서는 정부의 적극적인 지원금이 가장 중요하다고 생각하여 관련 내용을 정리해 발표함. 빈부 격차 문제에도 관심을 갖고 관련 다큐멘터리를 시청한 후 감상문을 제출함."
+                                },
+                                studentB: {
+                                    label: "학생 B",
+                                    text: `1학년 동아리활동\n\n범죄사건 재구성하기, 인지심리, 행동 심리학과 관련된 다양한 활동에 적극적으로 참여함. 특히 사람이 어떤 행동에 집중할 때 주위의 환경 변화를 눈치채지 못하는 주의의 맹시, 자신의 인지에 대해 통찰하는 메타인지 테스트, 처음 보는 것에 집중하는 초두효과에 깊은 관심을 보임. 인지심리, 뇌과학 이론을 학습으로 ○○○ 박사가 창담을 진행하는 영상을 통해 여러 시점의 기억과 감정이 선이 되어서도 영향을 준다는 것을 알게 됨. 또한 너무 멀리서 봐서는 받아들일 수 없는 상황에서 변화의 내재 여부를 보는 것인지 어떻게 극복할 수 있는지에 대한 탐구하고 싶다는 글을 작성함. 소그룹 활동인 협동학습에서 자신이 맡은 주제인 스트룹 효과를 맡아 인간은 색상보다 글자를 더 빨리 인식하기 때문에 단어의 색상과 글자가 일치하지 않을 때 더 많은 노력이 필요하다는 사실과 스트룹 효과가 쓰인 검사에서 ADHD, 지적장애, 치매 등을 진단하거나 전두엽 기능 장애 진단에 사용된다는 것을 뇌 기능과 연결하여 깔끔하게 탐구하는 모습을 보임. 이를 통해 맡은 역할을 책임감 있게 수행하고 리더십과 발표하는 모습이 돋보이며 의사소통, 협업, 배려심을 보임.\n\n3학년 동아리활동\n\n진로 이슈 탐구활동에서 저출산 이슈를 탐구하고 네덜란드와 한국의 공통점을 비교해 그 정책을 분석하는 한국의 특성을 비평함. 저출산 원인으로 생애사 이론을 언급하며 한국은 출산 연령이 높고 이로 인한 경쟁의 형성되어 성장의 중점을 두며 출산율을 낮추는 현상이 나타난다고 분석함. 이는 현재의 모습에 대해 역사적, 지리적, 환경적 영향이 다각적으로 얽혀 있다고 분석함. 저출산을 해결하기 위해서 다 같이 협동해야 하며 저출산이 아니라 살기 좋은 환경을 마련해서 사람들이 출산을 고려할 수 있어야 한다고 제안하는 기사를 작성해 학급에 게시함. 문제를 복합적으로 분석하고 비판적으로 볼 줄 아는 능력을 확인함. 인간 개인의 심리가 사회에서 어떻게 작용하여 불평등과 분열을 낳는지 알아보고 싶어 관련 영상을 찾아보고 평균 이하 효과를 소득 계층에 적용해 정치적 참여의 적극성을 비교함. 자신의 견해와 대립하거나 고소득층이 정치에 적극 참여하면 유지시기가 위협 잠재화될 수 있다고 분석함. 정치에 대한 감시와 비판이 점점 늘어나는 점을 비판한 시스템과 검사에 적극적인 결정에 참여해 부패를 막아야 한다는 글을 작성함.`
+                                },
+                                expertOpinion: `[진로역량 평가 기준]\n진로역량은 전공(계열)에 필요한 과목을 선택하여 이수한 정도, 전공(계열)에 필요한 과목을 수강하고 취득한 학업성취 수준, 자신의 진로를 탐색하는 과정에서 이루어진 활동이나 경험 및 노력을 평가합니다. 심리·인지과학부에서는 필수 이수과목이 있는 것은 아니지만 자신이 선택한 과목을 성실하게 이수하고, 해당 과목에서 사회과학에 대한 관심과 이해, 사회현상 및 문제에 대한 사고력, 논리력, 분석력이 드러나는지에 대해 확인합니다.\n\n[분석 결과]\n학생 B는 '스트룹 효과'를 단순 현상 확인에 그치지 않고 '뇌 기능(전두엽)' 및 '임상적 진단(ADHD)'과 연결하여 전문적으로 탐구했습니다. 3학년 때는 저출산 문제를 '생애사 이론'이라는 구체적인 학문적 프레임으로 분석하고, 역사·지리·환경적 맥락을 통합적으로 고찰하는 수준 높은 분석력을 보여주었습니다. 반면 학생 A는 인터넷 검색 수준의 정보 수집과 일반적인 견해 제시에 머물러 있어, 학생 B가 전공에 대한 깊이 있는 탐구력과 논리적 사고력 면에서 월등히 우수한 평가를 받습니다.`
+                            },
+                            literature: {
+                                title: "2학년 문학",
+                                better: "A",
+                                studentA: { label: "학생 A", text: "수업 중 '광장'을 읽고 한국과 서양의 자살 원인 차이를 주제로 심화 탐구 발표함. 신문 기사와 통계 자료를 활용하여 원인을 분석하고, 학교 교육의 내적 성찰 필요성이라는 대안까지 제시함." },
+                                studentB: { label: "학생 B", text: "수업 시간에 '광장'을 읽고 주인공의 심리에 대해 발표함. 책의 내용을 잘 요약하였으며 목소리가 크고 발표 태도가 좋음. 친구들에게 내용을 잘 전달하여 좋은 평가를 받음." },
+                                expertOpinion: "A학생은 단순 독서를 넘어 통계 분석과 대안 제시로 확장했습니다. B학생은 내용 요약에 그쳐 심화 탐구 역량이 부족합니다."
+                            }
+                        }
+                    },
+                    community: {
+                        label: "공동체역량",
+                        scenarios: {
+                            behavior: {
+                                title: "행동특성 및 종합의견",
+                                better: "B",
+                                studentA: {
+                                    label: "학생 A",
+                                    text: `1학년 행동특성\n\n교칙을 잘 준수하고 지각이나 결석 없이 성실하게 학교 생활에 임하는 학생임. 학급 1인 1역으로 '칠판 지우기'를 맡아 매 수업이 끝난 후 칠판을 깨끗이 정리하여 다음 수업 준비를 돕는 등 맡은 바 책임을 다함. 친구들과 다툼 없이 원만한 관계를 유지하며, 조용하고 차분한 성격으로 수업 시간에 떠들지 않고 경청하는 자세가 돋보임. 청소 시간에도 자신이 맡은 구역을 묵묵히 청소하며 학급 환경 미화에 기여함.\n\n2학년 행동특성\n\n학급 회의에 참여하여 친구들의 의견을 경청하고 결정된 사항을 잘 따르는 순응적인 태도를 보임. 체육 대회나 현장 체험 학습 등 학교 행사에 빠지지 않고 참여하며 친구들과 어울려 활동함. 특별히 나서거나 주도적인 역할을 하지는 않지만, 학급의 구성원으로서 제 몫을 다하며 면학 분위기 조성에 협조적인 태도를 유지함. 예의 바른 언행으로 선생님들께 칭찬을 들음.`
+                                },
+                                studentB: {
+                                    label: "학생 B",
+                                    text: `1학년 행동특성\n\n2학기 학급자치회 부회장(2022.08.16.~2023.02.28.)을 맡아 책임감 있게 학급을 이끌어 나감. 예의가 바르고 자신이 맡은 일에 최선을 다하려는 자세를 가지고 있음. 평소에는 자기주장을 잘 하지 않는 학생으로 보이나, 동아리에서 맡아 자기를 한 번 한 경험 이후로는 자기 의견을 거의 없는 부지런한 학생임. 학급 1인 1역 고무줄놀이를 담당하여 학급의 깨끗한 교실 분위기를 위해 항상 노력하였으며, 또한 문구를 철저히 하고 친구들의 쾌적한 학습 환경 속에서 수업에 집중할 수 있도록 도움을 줌. 학급심리에 가진 예의범절을 알고 있고, 쉬는 시간에 도움을 반응으로 열심히 활동하고 조원을 위해 노력하는 등 도움의 리더역할을 확실히 함. 우주여행프로젝트(2022.09.16.)에 실시한 모둠토의에서 사전에 주제를 선정하고 계획하며 그 주제에 맞는 토의 진행을 매끄럽게 하여 친구들의 탄성을 자아냄.\n\n2학년 행동특성\n\n2학기 학급자치회 회장으로 자신의 공약을 지키기 위해 매일 칠판에 명언이나 응원 문구를 적고 동기부여를 받을 수 있도록 함. 책임감과 리더십을 발휘하여 학급의 단합을 유지하고, 모범적인 모습을 보여주는 학생임. 2박 3일간의 현장 체험학습에서 잘 어울리는 친구를 잘 챙기고 통솔력을 보여주며 최우수 반으로 선정되는 데 기여함. 학급 회의에서도 다양한 의견을 존중하고 효과적으로 조율하여 합의점을 찾아 나가려 노력함. 수업 시간에 적극적으로 참여하고 발표력이 우수하며 토론 수업 시 토론의 전 과정을 원활히 진행하는 토론 리더의 자질을 충분히 보여줌. 예의 바르고 고운 말을 사용하며 맡은 일은 열정적으로 참여하여 좋은 결과를 보임. 학업에 많은 노력을 기울이고 수업 시간에도 바른 자세로 적극적으로 임하였음.`
+                                },
+                                expertOpinion: `[공동체역량 평가 기준]\n공동체역량은 공동체 일원으로서 필요한 바람직한 사고와 행동, 협업능력, 나눔과 배려, 소통능력, 성실성, 규칙준수, 리더십을 확인합니다.\n\n[분석 결과]\nB 학생의 경우 책임감과 리더십을 발휘하여 학급의 단합을 유지하는 모범적인 모습을 보여주고, 잘 어울리는 친구를 챙기고 통솔력을 보여주기도 하였습니다. 모둠의 반장, 토론의 리더 역할도 우수하게 수행하였으며, 학급 회의 등에서도 다양한 의견을 존중하고 효과적으로 조율하는 역량을 가지고 있는 것으로 보입니다.\n\n반면 A 학생은 규칙을 준수하고 맡은 청소 구역을 성실히 수행하는 등 기본적인 학교 생활에 충실하였습니다. 그러나 공동체의 문제 해결을 위해 주도적으로 나서거나 구체적인 협력과 소통의 사례가 잘 드러나지 않아, 리더십과 발전 가능성 측면에서 B 학생에 비해 아쉬움이 남습니다.`
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        // --- State Management ---
+        let state = {
+            step: -1, // -1: Intro, 0: Analysis, 1: Planning, 2: Feedback
+            dept: 'psychology',
+            tab: 'academic', 
+            scenarioKey: '',
+            showExpert: false,
+            analysisInput: '', 
+            studentPlan: { careerGoal: '', subject: '', activityTopic: '', activityProcess: '', learningPoint: '' },
+            studentInfo: '', // Added student info state
+            isFeedbackLoading: false
+        };
+
+        // --- PDF Generation Function ---
+        // --- PDF 생성 및 다운로드 함수 (수정본) ---
+window.downloadPDF = async function() {
+    const element = document.getElementById('pdf-wrapper');
+    
+    // 1. 데이터 채우기 (기존 로직 유지)
+    document.getElementById('report-student-name').innerText = state.studentInfo ? `작성자: ${state.studentInfo}` : "";
+    document.getElementById('report-category').innerText = `[${DEPARTMENTS[state.dept].categories[state.tab].label}] - ${DEPARTMENTS[state.dept].categories[state.tab].scenarios[state.scenarioKey].title}`;
+    document.getElementById('report-analysis').innerText = state.analysisInput || "(작성 내용 없음)";
+    document.getElementById('report-career').innerText = state.studentPlan.careerGoal || "미입력";
+    document.getElementById('report-subject').innerText = state.studentPlan.subject || "미입력";
+    document.getElementById('report-topic').innerText = state.studentPlan.activityTopic || "미입력";
+    document.getElementById('report-process').innerText = state.studentPlan.activityProcess || "미입력";
+    document.getElementById('report-learning').innerText = state.studentPlan.learningPoint || "미입력";
+
+    // 2. html2canvas로 캡처
+    // 팁: 캡처 시 배경색이 투명하게 나오지 않도록 backgroundColor 설정
+    const canvas = await html2canvas(element, { 
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: "#ffffff" 
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+
+    // 3. 동적 페이지 높이 계산
+    const imgWidth = 210; // A4 가로 너비 (mm)
+    const imgHeight = (canvas.height * imgWidth) / canvas.width; // 가로비율에 맞춘 세로 높이 계산
+
+    // 4. PDF 생성 (페이지 크기를 콘텐츠 높이에 맞춤)
+    // 'a4' 대신 [가로, 세로] 배열을 넣어 동적 크기 지정
+    const pdf = new jsPDF('p', 'mm', [imgWidth, imgHeight]);
+    
+    // 이미지를 페이지 꽉 차게 삽입 (좌측상단 0,0 위치)
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    
+    // 5. 저장
+    pdf.save(`${state.studentInfo || '나의'}_생기부_설계_보고서.pdf`);
+}
+
+        function goHome() {
+            if(confirm("메인 화면으로 돌아가시겠습니까?\n작성 중인 내용은 초기화될 수 있습니다.")) {
+                resetApp();
+            }
+        }
+
+        function updateStudentInfo(input) {
+            state.studentInfo = input.value;
+        }
+
+        function setInitialScenario() {
+            const scenarios = DEPARTMENTS[state.dept].categories[state.tab].scenarios;
+            state.scenarioKey = Object.keys(scenarios)[0];
+        }
+
+        // --- Render Functions ---
+        const app = document.getElementById('app');
+        function getCaseLabel(scenario, side) {
+  // 결과 공개 전: 중립 라벨(학생이 판단)
+  if (!state.showExpert) return side === "A" ? "사례 1" : "사례 2";
+
+  // 결과 공개 후: 우수/개선 필요 라벨
+  const better = scenario.better || "A";
+  return side === better ? "우수 사례" : "개선 필요 사례";
+}
+
+
+        function render() {
+            if (!state.scenarioKey) setInitialScenario();
+
+            let content = '';
+            if (state.step === -1) {
+                content = renderIntro();
+            } else {
+                content = `
+                    ${renderStepIndicator()}
+                    <div class="transition-all duration-300">
+                        ${state.step === 0 ? renderAnalysis() : ''}
+                        ${state.step === 1 ? renderPlanning() : ''}
+                        ${state.step === 2 ? renderFeedback() : ''}
+                    </div>
+                `;
+            }
+            
+            app.innerHTML = content;
+            lucide.createIcons();
+        }
+
+        function renderIntro() {
+            const points = DEPARTMENTS[state.dept].evalPoints;
+            
+            return `
+                <div class="fade-in max-w-5xl mx-auto text-center space-y-8 pt-6">
+                    <div>
+                        <div class="inline-block p-3 bg-indigo-100 rounded-full mb-3">
+                            <i data-lucide="graduation-cap" class="w-10 h-10 text-indigo-600"></i>
+                        </div>
+                        <h1 class="text-3xl font-extrabold text-gray-900 mb-2">입학사정관의 눈으로,<br/>나의 생기부 다시 쓰기</h1>
+                        <p class="text-sm text-gray-500 mt-2">출처: 2026 서울여대 학생부종합 가이드</p>
+                    </div>
+                    
+                    <div class="max-w-md mx-auto">
+                        <label class="block text-left text-sm font-bold text-gray-700 mb-2">학번 / 이름</label>
+                        <input type="text" 
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                            placeholder="예: 10101 홍길동"
+                            value="${state.studentInfo || ''}"
+                            oninput="updateStudentInfo(this)"
+                        >
+                    </div>
+
+                    <div class="grid md:grid-cols-3 gap-6 text-left">
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col h-full">
+                            <h3 class="font-bold text-lg text-indigo-600 mb-2 flex items-center border-b pb-2 border-indigo-100">
+                                <i data-lucide="book-open" class="w-5 h-5 mr-2"></i> 학업역량
+                            </h3>
+                            <p class="text-xs font-bold text-gray-800 mb-3 bg-indigo-50 p-2 rounded">${points.academic.definition}</p>
+                            <ul class="text-xs text-gray-600 space-y-2 list-none flex-grow">
+                                ${points.academic.details.map(p => `<li class="pl-2 border-l-2 border-indigo-200">${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col h-full">
+                            <h3 class="font-bold text-lg text-emerald-600 mb-2 flex items-center border-b pb-2 border-emerald-100">
+                                <i data-lucide="compass" class="w-5 h-5 mr-2"></i> 진로역량
+                            </h3>
+                            <p class="text-xs font-bold text-gray-800 mb-3 bg-emerald-50 p-2 rounded">${points.career.definition}</p>
+                            <ul class="text-xs text-gray-600 space-y-2 list-none flex-grow">
+                                ${points.career.details.map(p => `<li class="pl-2 border-l-2 border-emerald-200">${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col h-full">
+                            <h3 class="font-bold text-lg text-orange-600 mb-2 flex items-center border-b pb-2 border-orange-100">
+                                <i data-lucide="users" class="w-5 h-5 mr-2"></i> 공동체역량
+                            </h3>
+                            <p class="text-xs font-bold text-gray-800 mb-3 bg-orange-50 p-2 rounded">${points.community.definition}</p>
+                            <ul class="text-xs text-gray-600 space-y-2 list-none flex-grow">
+                                ${points.community.details.map(p => `<li class="pl-2 border-l-2 border-orange-200">${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-200">
+                        <p class="text-indigo-800 font-medium mb-4">
+                            "입학사정관은 단순한 성적보다는 <br/>
+                            <strong>과정에서의 태도, 깊이 있는 탐구, 그리고 공동체에 대한 기여</strong>를 중요하게 평가합니다."
+                        </p>
+                        <button onclick="setStep(0)" class="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-indigo-700 transition-transform hover:scale-105 shadow-lg flex items-center justify-center mx-auto">
+                            평가 기준 숙지 완료! 실전 분석 시작하기 <i data-lucide="arrow-right" class="ml-2 w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStepIndicator() {
+            const steps = ["비교 분석 시뮬레이션", "나만의 생기부 설계", "(예상)입학사정관 피드백"];
+            return `
+                <div class="flex justify-between mb-8 overflow-x-auto pb-2">
+                    ${steps.map((s, i) => `
+                        <div class="flex items-center ${i <= state.step ? 'text-indigo-600 font-bold' : 'text-gray-400'} whitespace-nowrap mr-4">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center mr-2 ${i <= state.step ? 'bg-indigo-600 text-white' : 'bg-gray-200'}">
+                                ${i + 1}
+                            </div>
+                            <span>${s}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderAnalysis() {
+            const deptData = DEPARTMENTS[state.dept];
+            const categoryData = deptData.categories[state.tab];
+            const scenario = categoryData.scenarios[state.scenarioKey];
+            const currentLen = state.analysisInput.length;
+            const isPass = currentLen >= 100;
+            
+            const tabs = ['academic', 'career', 'community'].map(tabKey => {
+                const label = deptData.categories[tabKey].label;
+                const isActive = state.tab === tabKey;
+                return `
+                    <button onclick="updateState('tab', '${tabKey}')"
+                        class="px-4 py-2 font-bold text-sm rounded-t-lg transition-colors border-b-2 
+                        ${isActive ? 'text-indigo-600 border-indigo-600 bg-indigo-50' : 'text-gray-500 border-transparent hover:text-gray-700'}">
+                        ${label}
+                    </button>
+                `;
+            }).join('');
+
+            const scenarioButtons = Object.entries(categoryData.scenarios).map(([key, data]) => {
+                const isSelected = state.scenarioKey === key;
+                return `
+                    <button onclick="updateState('scenarioKey', '${key}')"
+                        class="px-3 py-1 rounded-full text-xs font-bold border transition-colors whitespace-nowrap
+                        ${isSelected ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-300'}">
+                        ${data.title}
+                    </button>
+                `;
+            }).join('');
+
+            return `
+                <div class="space-y-6 fade-in">
+                    <div class="text-center mb-8">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center justify-center">
+                            <i data-lucide="scale" class="mr-2"></i> 입학사정관 비교 분석 시뮬레이션
+                        </h2>
+                        <p class="text-gray-500 mt-2">두 학생의 생기부를 읽고, 어떤 학생이 더 우수한 평가를 받을지 분석해보세요.</p>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex space-x-1 border-b border-gray-200">
+                                ${tabs}
+                            </div>
+                            <div class="flex flex-wrap gap-2 pt-2">
+                                ${scenarioButtons}
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-bold text-indigo-900 border-l-4 border-indigo-500 pl-3 mb-4">
+                        ${scenario.title} 비교
+                    </h3>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-blue-50 p-6 rounded-xl border border-blue-200 relative">
+                            <div class="absolute -top-3 left-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                ${getCaseLabel(scenario, "A")}
+                            </div>
+                            <p class="text-gray-700 leading-relaxed mt-4 min-h-[120px] whitespace-pre-line text-sm">
+                                "${scenario.studentA.text}"
+                            </p>
+                        </div>
+                        <div class="bg-orange-50 p-6 rounded-xl border border-orange-200 relative">
+                            <div class="absolute -top-3 left-4 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                                ${getCaseLabel(scenario, "B")}
+                            </div>
+                            <p class="text-gray-700 leading-relaxed mt-4 min-h-[120px] whitespace-pre-line text-sm">
+                                "${scenario.studentB.text}"
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mt-6">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">
+                            🕵️‍♀️ 예비 입학사정관님의 분석:
+                        </label>
+                        <p class="text-xs text-gray-500 mb-3">
+                            어떤 학생이 더 우수하다고 생각하나요? 그 이유는 무엇인가요? <br/>
+                            또 부족하다고 보여지는 학생은 어느 부분에서 부족하다고 생각하나요? 그 이유는 무엇인가요?
+                        </p>
+                        <textarea 
+                            class="w-full p-4 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-32 bg-gray-50 text-sm" 
+                            placeholder="두 학생의 차이점과 본인이 생각하는 우수 학생을 구체적으로 적어주세요. (100자 이상)"
+                            oninput="updateAnalysisText(this)"
+                        >${state.analysisInput}</textarea>
+                        
+                        <div class="flex justify-between items-center mt-3">
+                            <span id="analysisCharCount" class="text-xs font-bold ${isPass ? 'text-green-600' : 'text-red-500'}">
+                                현재 ${currentLen}자 / 100자
+                            </span>
+                            <button onclick="checkAnalysisPass()" 
+                                class="px-6 py-2 rounded-lg font-bold text-sm transition-all shadow-md flex items-center
+                                ${isPass ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}">
+                                <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> 실제 평가 결과 확인하기
+                            </button>
+                        </div>
+                    </div>
+
+                    ${state.showExpert ? `
+                        <div class="bg-gray-800 text-white p-6 rounded-xl mt-4 slide-up border-l-4 border-yellow-400">
+                            <h3 class="font-bold text-lg text-yellow-400 mb-2 flex items-center">
+                                <i data-lucide="award" class="mr-2"></i> 실제 입학사정관의 평가
+                            </h3>
+                            <p class="leading-relaxed text-gray-200 whitespace-pre-line text-sm">
+                                ${scenario.expertOpinion}
+                            </p>
+                            <div class="mt-6 flex justify-center">
+                                <button onclick="setStep(1)" class="bg-white text-gray-900 px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform flex items-center">
+                                    분석 내용을 바탕으로 내 생기부 설계하기 <i data-lucide="chevron-right" class="ml-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderPlanning() {
+            return `
+                <div class="space-y-6 fade-in">
+                    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-8 rounded-xl text-white mb-8">
+                        <h2 class="text-2xl font-bold mb-2">🚀 생기부 디자인 워크숍</h2>
+                        <p class="opacity-90">
+                            앞서 본 우수 사례들처럼, <strong>[구체적 소재 - 심화 탐구 - 진로 연계]</strong>가 드러나도록 설계해봅시다.
+                        </p>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">희망 진로 (학과)</label>
+                                <input type="text" value="${state.studentPlan.careerGoal}" oninput="updatePlan('careerGoal', this.value)" 
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 심리학과, 화학공학과">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">관련 교과목 및 단원</label>
+                                <input type="text" value="${state.studentPlan.subject}" oninput="updatePlan('subject', this.value)"
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 확률과 통계 / 통계적 추정 단원">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">탐구 주제 (가제)</label>
+                                <input type="text" value="${state.studentPlan.activityTopic}" oninput="updatePlan('activityTopic', this.value)"
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 청소년의 SNS 사용시간과 자존감의 상관관계 분석">
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">탐구 과정 (구체적으로!)</label>
+                                <p class="text-xs text-gray-500 mb-1">*우수 사례처럼 어떤 논문, 어떤 실험 도구, 어떤 통계 기법을 썼는지 적어보세요.</p>
+                                <textarea oninput="updatePlan('activityProcess', this.value)"
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none" placeholder="예: 통계청 자료를 통해 기초 데이터를 수집하고...">${state.studentPlan.activityProcess}</textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">배우고 느낀 점 (진로 연계)</label>
+                                <textarea oninput="updatePlan('learningPoint', this.value)"
+                                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none" placeholder="예: 이론과 실제 데이터의 오차를 분석하며...">${state.studentPlan.learningPoint}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-4 space-x-4">
+                        <button onclick="setStep(0)" class="px-6 py-3 rounded-lg font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+                            이전 단계
+                        </button>
+                        <button onclick="submitPlan()" class="bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center shadow-lg">
+                            <i data-lucide="message-square" class="mr-2 w-5 h-5"></i> 선생님 피드백 받기
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFeedback() {
+            return `
+                <div class="space-y-6 fade-in">
+                    <div class="text-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">👩‍🏫 입학사정관 선생님의 1:1 피드백</h2>
+                        <p class="text-gray-500">학생이 작성한 설계안을 바탕으로 조언을 준비했습니다.</p>
+                    </div>
+
+                    <div class="flex flex-col lg:flex-row gap-6">
+                        <div class="lg:w-1/2 space-y-4">
+                            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm opacity-90">
+                                <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">학생의 설계안</h3>
+                                <div class="space-y-3">
+                                    <div>
+                                        <span class="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded">희망 진로</span>
+                                        <p class="font-bold text-gray-800 mt-1">${state.studentPlan.careerGoal || '(미입력)'}</p>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded">탐구 주제</span>
+                                        <p class="font-bold text-gray-800 mt-1">${state.studentPlan.activityTopic || '(미입력)'}</p>
+                                    </div>
+                                    <div class="border-t pt-2 mt-2">
+                                        <p class="text-xs font-bold text-gray-400 mb-1">탐구 과정</p>
+                                        <p class="text-sm text-gray-600">${state.studentPlan.activityProcess || '(미입력)'}</p>
+                                    </div>
+                                    <div class="border-t pt-2 mt-2">
+                                        <p class="text-xs font-bold text-gray-400 mb-1">배우고 느낀 점</p>
+                                        <p class="text-sm text-gray-600 italic">"${state.studentPlan.learningPoint || '(미입력)'}"</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="lg:w-1/2">
+                            ${state.isFeedbackLoading ? `
+                                <div class="h-full flex flex-col items-center justify-center p-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
+                                    <p class="text-gray-500">작성 내용을 분석하여 대학 평가 기준에 대입 중입니다...</p>
+                                </div>
+                            ` : `
+                                <div class="bg-indigo-900 text-white p-6 rounded-xl shadow-xl relative overflow-hidden slide-up">
+                                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                                        <i data-lucide="award" class="w-24 h-24"></i>
+                                    </div>
+                                    
+                                    <h3 class="text-xl font-bold text-yellow-400 mb-4 flex items-center">
+                                        <i data-lucide="message-square" class="mr-2"></i> 피드백 리포트
+                                    </h3>
+
+                                    <div class="space-y-4 text-indigo-100">
+                                        <div class="bg-white/10 p-4 rounded-lg border border-white/20 text-center py-10">
+                                            <p class="text-lg font-bold mb-2">선생님과 상담하여 채워나가는 공간입니다.</p>
+                                            <p class="text-sm opacity-80">
+                                                출력된 PDF 보고서의 빈칸에<br/>선생님의 소중한 조언을 직접 받아보세요!
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="mt-6 flex justify-end">
+                                        <button onclick="downloadPDF()" class="bg-yellow-500 text-indigo-900 px-6 py-3 rounded-full font-bold hover:bg-yellow-400 transition-colors flex items-center shadow-lg">
+                                            <i data-lucide="download" class="mr-2 w-5 h-5"></i> 활동 보고서 PDF 저장
+                                        </button>
+                                    </div>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center pt-8">
+                        <button onclick="resetApp()" class="bg-white border-2 border-gray-300 text-gray-600 px-6 py-2 rounded-full font-bold hover:bg-gray-50 flex items-center">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i> 처음으로 돌아가기
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Logic Functions ---
+        function updateAnalysisText(textarea) {
+            const length = textarea.value.length;
+            state.analysisInput = textarea.value;
+            const countSpan = document.getElementById('analysisCharCount');
+            const btn = textarea.nextElementSibling.querySelector('button');
+            countSpan.textContent = `현재 ${length}자 / 100자`;
+            if (length >= 100) {
+                countSpan.classList.remove('text-red-500');
+                countSpan.classList.add('text-green-600');
+                btn.className = "px-6 py-2 rounded-lg font-bold text-sm transition-all shadow-md flex items-center bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105";
+            } else {
+                countSpan.classList.remove('text-green-600');
+                countSpan.classList.add('text-red-500');
+                btn.className = "px-6 py-2 rounded-lg font-bold text-sm transition-all shadow-md flex items-center bg-gray-300 text-gray-500 cursor-not-allowed";
+            }
+        }
+
+        function checkAnalysisPass() {
+            if (state.analysisInput.length >= 100) {
+                toggleExpert(true);
+            } else {
+                alert("분석 내용을 100자 이상 작성해야 전문가 평가를 확인할 수 있습니다!");
+            }
+        }
+
+        function updateState(key, value) {
+            state[key] = value;
+            if (key === 'dept') {
+                state.tab = 'academic';
+                state.showExpert = false;
+                state.analysisInput = ''; 
+                setInitialScenario();
+            } else if (key === 'tab') {
+                state.showExpert = false;
+                state.analysisInput = ''; 
+                setInitialScenario();
+            } else if (key === 'scenarioKey') {
+                state.showExpert = false;
+                state.analysisInput = ''; 
+            }
+            render();
+        }
+
+        function toggleExpert(show) {
+            state.showExpert = show;
+            render();
+        }
+
+        function setStep(step) {
+            state.step = step;
+            window.scrollTo(0, 0);
+            render();
+        }
+
+        function updatePlan(key, value) {
+            state.studentPlan[key] = value;
+        }
+
+        function submitPlan() {
+            if (!state.studentPlan.careerGoal || !state.studentPlan.activityProcess) {
+                alert("진로와 탐구 과정을 최소한 작성해주세요!");
+                return;
+            }
+            state.step = 2;
+            state.isFeedbackLoading = true;
+            render();
+            setTimeout(() => {
+                state.isFeedbackLoading = false;
+                render();
+            }, 1500);
+        }
+
+        function resetApp() {
+            state = {
+                step: -1, 
+                dept: 'psychology',
+                tab: 'academic',
+                scenarioKey: '',
+                showExpert: false,
+                analysisInput: '',
+                studentPlan: { careerGoal: '', subject: '', activityTopic: '', activityProcess: '', learningPoint: '' },
+                isFeedbackLoading: false,
+                studentInfo: ''
+            };
+            render();
+        }
+
+        // 초기 렌더링
+        render();
+    </script>
+</body>
+</html>
